@@ -6,6 +6,7 @@ import com.thoughtworks.rslist.dto.RsEventDto;
 import com.thoughtworks.rslist.dto.TradeDto;
 import com.thoughtworks.rslist.dto.UserDto;
 import com.thoughtworks.rslist.dto.VoteDto;
+import com.thoughtworks.rslist.exception.RequestNotValidException;
 import com.thoughtworks.rslist.repository.RsEventRepository;
 import com.thoughtworks.rslist.repository.TradeRepository;
 import com.thoughtworks.rslist.repository.UserRepository;
@@ -13,6 +14,7 @@ import com.thoughtworks.rslist.repository.VoteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -55,10 +57,20 @@ public class RsService {
   }
 
   public void buy(Trade trade, int rsEventId) {
+
+    Optional<RsEventDto> rsEventAtTargetRank = rsEventRepository.findByRank(trade.getRank());
     Optional<RsEventDto> rsEventDto = rsEventRepository.findById(rsEventId);
     if (!rsEventDto.isPresent()) {
       throw new RuntimeException();
     }
+
+    if (rsEventAtTargetRank.isPresent() && rsEventAtTargetRank.get().getPrice() >= trade.getAmount()) {
+      throw new RequestNotValidException("You cannot buy this rank , please give a higher amount");
+    }else if (rsEventAtTargetRank.isPresent() && rsEventAtTargetRank.get().getPrice() < trade.getAmount()) {
+      System.out.println("恭喜您购买成功");
+      rsEventRepository.delete(rsEventAtTargetRank.get());
+    }
+
     TradeDto tradeDto = TradeDto.builder()
             .amount(trade.getAmount())
             .rank(trade.getRank())
@@ -66,6 +78,10 @@ public class RsService {
             .build();
     tradeRepository.save(tradeDto);
     RsEventDto rsEvent = rsEventDto.get();
+    rsEvent.setRank(trade.getRank());
+    rsEvent.setPrice(trade.getAmount());
     rsEventRepository.save(rsEvent);
+
+
   }
 }

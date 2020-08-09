@@ -38,6 +38,8 @@ class RsServiceTest {
   LocalDateTime localDateTime;
   Vote vote;
   Trade trade;
+  Trade trade2;
+  Trade trade3;
 
   @BeforeEach
   void setUp() {
@@ -46,6 +48,8 @@ class RsServiceTest {
     localDateTime = LocalDateTime.now();
     vote = Vote.builder().voteNum(2).rsEventId(1).time(localDateTime).userId(1).build();
     trade = Trade.builder().amount(100).rank(1).rsEventId(1).build();
+    trade2 = Trade.builder().amount(50).rank(1).rsEventId(2).build();
+    trade3 = Trade.builder().amount(200).rank(1).rsEventId(2).build();
   }
 
   @Test
@@ -122,6 +126,109 @@ class RsServiceTest {
     verify(rsEventRepository).save(rsEventDto);
   }
 
+  @Test
+  void shouldNotBuyIfAmountIsNotEnough(){
+    //Given
+    UserDto userDto = UserDto.builder()
+            .voteNum(5)
+            .phone("18888888888")
+            .gender("female")
+            .email("a@b.com")
+            .age(19)
+            .userName("xiaoli")
+            .id(2)
+            .build();
+    RsEventDto rsEventDto = RsEventDto.builder()
+            .eventName("event name")
+            .id(1)
+            .keyword("keyword")
+            .voteNum(2)
+            .user(userDto)
+            .build();
+    RsEventDto rsEventDto2 = RsEventDto.builder()
+            .eventName("event name two")
+            .id(2)
+            .keyword("keyword two")
+            .voteNum(4)
+            .user(userDto)
+            .build();
+    when(rsEventRepository.findById(1)).thenReturn(Optional.of(rsEventDto));
+    when(rsEventRepository.findById(2)).thenReturn(Optional.of(rsEventDto2));
+    when(userRepository.findById(anyInt())).thenReturn(Optional.of(userDto));
+    // when
+    rsService.buy(trade, 1);
+    rsService.buy(trade2, 2);
+    // then
+    verify(tradeRepository)
+            .save(
+                    TradeDto.builder()
+                            .amount(100)
+                            .rank(1)
+                            .rsEvent(rsEventDto)
+                            .build());
+    verify(tradeRepository)
+            .save(
+                    TradeDto.builder()
+                            .amount(50)
+                            .rank(1)
+                            .rsEvent(rsEventDto2)
+                            .build());
+    verify(rsEventRepository).save(rsEventDto);
+    verify(rsEventRepository).save(rsEventDto2);
+  }
+
+  @Test
+  void shouldDeleteFormerRsEventIfAmountHigher(){
+    //Given
+    UserDto userDto = UserDto.builder()
+            .voteNum(5)
+            .phone("18888888888")
+            .gender("female")
+            .email("a@b.com")
+            .age(19)
+            .userName("xiaoli")
+            .id(1)
+            .build();
+    RsEventDto rsEventDto = RsEventDto.builder()
+            .eventName("event name")
+            .id(1)
+            .keyword("keyword")
+            .voteNum(2)
+            .user(userDto)
+            .build();
+    when(rsEventRepository.findById(1)).thenReturn(Optional.of(rsEventDto));
+    when(userRepository.findById(anyInt())).thenReturn(Optional.of(userDto));
+    // when
+    rsService.buy(trade, 1);
+    // then
+    verify(tradeRepository)
+            .save(
+                    TradeDto.builder()
+                            .amount(100)
+                            .rank(1)
+                            .rsEvent(rsEventDto)
+                            .build());
+    //Given
+    RsEventDto rsEventDto2 = RsEventDto.builder()
+            .eventName("event name two")
+            .id(2)
+            .keyword("keyword two")
+            .voteNum(4)
+            .user(userDto)
+            .build();
+    when(rsEventRepository.findById(2)).thenReturn(Optional.of(rsEventDto2));
+    //When
+    rsService.buy(trade3, 2);
+    //Then
+    verify(tradeRepository)
+            .save(
+                    TradeDto.builder()
+                            .amount(200)
+                            .rank(1)
+                            .rsEvent(rsEventDto2)
+                            .build());
+    verify(rsEventRepository).save(rsEventDto2);
+  }
 
   @Test
   void shouldThrowExceptionWhenUserNotExist() {

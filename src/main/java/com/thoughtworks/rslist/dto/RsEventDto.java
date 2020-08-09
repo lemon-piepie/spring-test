@@ -21,4 +21,8 @@ public class RsEventDto {
   @ManyToOne private UserDto user;
   @OneToOne
   private TradeDto trade;
+  @Builder.Default
+  private int rank = 0;
+  @Builder.Default
+  private int price = 0;
 }
